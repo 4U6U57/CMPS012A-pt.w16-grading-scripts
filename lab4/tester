@@ -1,0 +1,73 @@
+#!/bin/bash
+
+ROOT="/afs/cats.ucsc.edu/class"
+CLASSES="cmps012a-pt.w16 cmps011-pt.w16"
+ASG=$(basename $(pwd))
+BIN="$ROOT/cmps012a-pt.w16/bin/$ASG"
+SEPARATE="=================================================="
+
+# Takes input cmd, runs it for every student
+# Use this like follows: forall ls, forall echo "test"
+forall() {
+  for CLASS in $CLASSES; do
+    CLASSNUM=$(echo $CLASS | cut -d '0' -f 2 | cut -d '-' -f 1)
+    ASGDIR=$ROOT/$CLASS/$ASG
+    cd $ASGDIR
+    for STUDENT in $(ls -d */); do
+      STUDENTDIR=$ASGDIR/$STUDENT
+      cd $STUDENTDIR
+      #echo "$SEPARATE"
+      #echo "$CLASS/$STUDENT $@"
+      $@
+    done
+  done
+}
+
+garbage() {
+  if [[ -e Makefile ]]; then
+    if [[ $(diff -Bb -I '#.*' $BIN/correct.$CLASSNUM.mk Makefile) ]]; then
+      echo "--- FAIL DIFF $CLASSNUM/$STUDENT"
+    else
+      echo "    PASS DIFF $CLASSNUM/$STUDENT"
+    fi
+  else
+    echo "XXX NO MAKEFILE $CLASSNUM/$STUDENT"
+  fi
+}
+
+tester() {
+  if [[ $(grep – Makefile) ]]; then
+    echo "sucks to suck"
+  else
+    echo "ayy lmao"
+  fi
+}
+
+fix() {
+  if [[ $(diff .d.makefile.f $BIN/.d.makefile.f) ]]; then
+    echo "$SEPARATE"
+    pwd
+    cat .d.makefile.f
+    echo
+    cat .notes.f
+  fi
+}
+
+fixer() {
+  if [[ -e .d.makefile.f && $(head -c 1 .d.makefile.f) != 5 && ! -e .notes.f ]]; then
+    echo "$SEPARATE"
+    pwd
+    cat .d.makefile.f
+    echo
+    rm .d.makefile.f
+  fi
+}
+
+
+header() {
+  echo "$SEPARATE"
+  pwd
+  head -n 3 Makefile
+}
+
+forall fixer

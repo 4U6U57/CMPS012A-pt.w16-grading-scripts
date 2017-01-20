@@ -1,0 +1,452 @@
+#!/bin/bash
+# grade.sh
+
+# errors named correctly - 2 points
+# comment block - 1 point
+# each of the 5 errors in .dat files - 5 points
+# rest (Isaak) - 12 points
+
+ROOT="/afs/cats.ucsc.edu/class"
+CLASSES="cmps012a-pt.w16 cmps011-pt.w16"
+ASG=$(basename $(pwd))
+BIN="$ROOT/cmps012a-pt.w16/bin/$ASG"
+SEPARATE="=================================================="
+LOG=$BIN/grade.log
+
+# Takes input cmd, runs it for every student
+# Use this like follows: forall ls, forall echo "test"
+forall() {
+  for CLASS in $CLASSES; do
+    CLASSNUM=$(echo $CLASS | cut -d '0' -f 2 | cut -d '-' -f 1)
+    ASGDIR=$ROOT/$CLASS/$ASG
+    cd $ASGDIR
+    for STUDENT in $(ls -d */); do
+      STUDENTDIR=$ASGDIR/$STUDENT
+      cd $STUDENTDIR
+      echo "$SEPARATE"
+      echo "$CLASS/$STUDENT $@"
+      STUDENT=$(basename $STUDENT /)
+      $@
+    done
+  done
+}
+
+# Cleanup any trash from previous runs
+RUNME=".runme.f"
+runmenow() {
+  if [[ -e $RUNME ]]; then
+    $RUNME
+    rm -f $RUNME
+  fi
+}
+runmeinit() {
+  runmenow > /dev/null
+  echo "#!/bin/bash" > $RUNME
+  chmod +x $RUNME
+}
+forall runmeinit > /dev/null
+runme() {
+  echo $@ >> $RUNME
+}
+
+# Init scores
+# cat $SCOREFILE to read current score
+# use score -1 to deduct one point
+SCOREFILE=".score.f"
+DEDUCTFILE=".deduct.f"
+RESULTFILE="result.f"
+NOTEFILE=".notes.f"
+SCORETOTAL=20
+scoreinit() {
+  echo $@ > $SCOREFILE
+  rm -f $DEDUCTFILE
+  touch $DEDUCTFILE
+}
+score() {
+  echo $(($(cat $SCOREFILE) + $@)) > $SCOREFILE
+}
+forall scoreinit 0 > /dev/null
+rm -f $LOG
+
+# Automatic checks
+RESULTFILE=errors.temp
+checkauto() {
+  if ls -m | grep -q ".*.dat"; then
+    for REGEX in "(0|[6-9]|[0-9][0-9]+)\s+[0-9]" "2\s+4" "3\s+3" "4\s+[0-9]" "5\s+2" "5\s+(0|[5-9]|[0-9][0-9]+)"; do
+      REGEXPRINT=${REGEX//\\s+/ }
+      REGEXPRINT=${REGEXPRINT//\(0\|\[5-9\]\|\[0-9\]\[0-9\]\+\)/0\/5+}
+      REGEXPRINT=${REGEXPRINT//\(0\|\[6-9\]\|\[0-9\]\[0-9\]\+\)/0\/6+}
+      REGEXPRINT=${REGEXPRINT//\[0-9\]/*}
+      if [[ $REGEXPRINT == "5 0/5+" ]]; then
+        PERF=0
+      else
+        PERF=1
+      fi
+      if grep -Pq $REGEX *.dat; then
+        REGEXOUT=$(grep -hP $REGEX *.dat)
+        REGEXOUT=${REGEXOUT//$'\n'/, }
+        REGEXOUT=${REGEXOUT//$'\r'/^R}
+        echo "1 / $PERF | Tested for error '$REGEXPRINT' ($REGEXOUT)" >> $DEDUCTFILE
+        score 1
+      else
+        echo "0 / $PERF | Did not test for error '$REGEXPRINT'" >> $DEDUCTFILE
+      fi
+    done
+  else
+    echo "0 / 5 | .dat files not submitted (ls: $(ls -m))" >> $DEDUCTFILE
+  fi
+
+  FOUND=false
+  for FILE in *; do
+    if [[ ($FILE == *rror* && $FILE != *.dat) || $FILE == errors.dat ]]; then
+      if [[ $FILE == errors ]]; then
+        echo "2 / 2 | 'errors' file submitted correctly" >> $DEDUCTFILE
+        score 2
+      elif [[ ! -e errors ]]; then
+        echo "1 / 2 | 'errors' file named incorrectly ($FILE)" >> $DEDUCTFILE
+        score 1
+      fi
+      cp $FILE $RESULTFILE
+      runme rm -f $RESULTFILE
+      FOUND=true
+    fi
+  done
+  if [[ $FOUND == false ]]; then
+    echo "0 / 2 | 'errors' file not submitted (ls: $(ls -m))" >> $DEDUCTFILE
+  fi
+}
+forall checkauto > /dev/null
+
+# August's stuff
+checkfilename() {
+  DEDUCT=".d.filename.f"
+  DEDUCTTEMP=$DEDUCT.temp.f
+  if [[ -e $DEDUCT ]]; then
+    pwd
+    cat $DEDUCT
+  else
+    touch $DEDUCTTEMP
+    runme rm -f $DEDUCTTEMP
+    for FILE in *; do
+      if [[ $FILE == *.dat || $FILE == *rror* ]]; then
+        echo "RECOGNIZED FILE $FILE"
+      else
+        echo; echo; echo; echo; echo
+        cat $FILE
+        echo
+        echo "UNKNOWN FILE $FILE"
+        echo -n "Action? (r)ename to .dat, (d)elete, (i)gnore: "
+        read INPUT
+        case "$INPUT" in
+          r)
+            echo "Renaming to $FILE.dat"
+            mv $FILE $FILE.dat
+            echo "0 / 0 | Data file missing .dat extension ($FILE)" >> $DEDUCTTEMP
+            ;;
+          d)
+            echo "Deleting $FILE"
+            rm -rf $FILE $FILE.dat
+            echo "0 / 0 | Unnecessary file submitted ($FILE)" >> $DEDUCTTEMP
+            ;;
+          *)
+            echo "Ignoring $FILE"
+            echo $FILE >> $BIN/badnames.txt
+            ;;
+        esac
+      fi
+    done
+    cat $DEDUCTTEMP > $DEDUCT
+  fi
+}
+checkcomment() {
+  DEDUCT=".d.comment.f"
+  if [[ -e $DEDUCT ]]; then
+    pwd
+    cat $DEDUCT
+  else
+    if [[ -e $RESULTFILE ]]; then
+      FIRSTCHAR=$(head -c 1 errors.temp)
+      if [[ $FIRSTCHAR == \# || $FIRSTCHAR == \/ || $FIRSTCHAR == - ]]; then
+        echo "1 / 1 | Comment block in 'errors' followed standard format" >> $DEDUCT
+      else
+        echo; echo; echo; echo; echo
+        cat $RESULTFILE
+        echo
+        echo -n "Comment block? (y)es (n)o (s)kip: "
+        read INPUT
+        case "$INPUT" in
+          y)
+            echo "Accepted comment block"
+            echo "1 / 1 | Comment block in 'errors' not standard, but acceptable" >> $DEDUCT
+            ;;
+          n)
+            echo "Rejected comment block"
+            echo "0 / 1 | No comment block in 'errors'" >> $DEDUCT
+            ;;
+          *)
+            echo "Ignoring for now"
+            ;;
+        esac
+      fi
+    else
+      echo "1 / 1 | Comment block in 'errors' file (did not submit anything)" >> $DEDUCT
+    fi
+  fi
+}
+
+# Isaak's stuff
+checkerrors() {
+  DEDUCT=".d.errors.f"
+  DNOTES=".notes.f"
+  if [[ -e $DEDUCT ]]; then
+    pwd
+    echo; echo; echo
+    echo "$DEDUCT"
+    echo "$SEPARATE"
+    cat $DEDUCT
+    if [[ -e $DNOTES ]]; then
+      echo "$DNOTES"
+      echo "$SEPARATE"
+      cat $DNOTES
+    fi
+  elif [[ -e $RESULTFILE ]]; then
+    echo; echo; echo
+    cat $RESULTFILE
+    echo; echo; echo
+    DSCORE=2
+    for REGEX in "0/6+ *" "2 4" "3 3" "4 *" "5 2"; do
+      case "$REGEX" in
+        "0/6+ *")
+          DEXTRA="valid instead of invalid"
+          ;;
+        "2 4")
+          DEXTRA="hot instead of cold"
+          ;;
+        "3 3")
+          DEXTRA="last instead of next"
+          ;;
+        "4 *")
+          DEXTRA="books instead of book"
+          ;;
+        "5 2")
+          DEXTRA="missing period"
+          ;;
+      esac
+      echo -n "Did they find error $REGEX: $DEXTRA? [y/n]: "
+      read INPUT
+      if [[ $INPUT == "y" ]]; then
+        DSCORE=$((DSCORE + 2))
+      else
+        echo "Did not find error $REGEX: $DEXTRA" >> $DNOTES
+      fi
+    done
+    if [[ $DSCORE != 12 ]]; then
+      REGEX="5 0/5+"
+      DEXTRA="missing rest of sentence after ERROR"
+      echo -n "Did they find extra credit error $REGEX: $DEXTRA? [y/n]: "
+      read INPUT
+      if [[ $INPUT == "y" ]]; then
+        DSCORE=$((DSCORE + 2))
+        echo "Found extra credit error $REGEX: $DEXTRA" >> $DNOTES
+      fi
+    fi
+    echo; echo; echo; echo; echo
+    if [[ -e $DNOTES ]]; then
+      echo "Current score $DSCORE, with the following notes"
+      cat $DNOTES
+    else
+      echo "Current score is $DSCORE, with no notes"
+    fi
+    echo -n "Finalize this score, delete it, or modify? [y/n/e]: "
+    read INPUT
+    if [[ $INPUT == "e" ]]; then
+      echo -n "Their score is $DSCORE. Enter in a new score, or ENTER to keep it: "
+      read INPUT
+      if [[ $INPUT != "" ]]; then
+        DSCORE=$INPUT
+      fi
+      vim $DNOTES
+      INPUT="y"
+    fi
+    if [[ $INPUT == "y" ]]; then
+      if [[ $DSCORE == 12 ]]; then
+        echo -n "12/12 | 'errors' file correct, " >> $DEDUCT
+        if [[ -e $DNOTES ]]; then
+          echo "see notes" >> $DEDUCT
+        else
+          echo "no notes" >> $DEDUCT
+        fi
+      else
+        echo "$DSCORE/12 | 'errors' file incorrect, see notes" >> $DEDUCT
+      fi
+      echo; echo; echo
+      echo "$DEDUCT"
+      echo "$SEPARATE"
+      cat $DEDUCT
+      if [[ -e $DNOTES ]]; then
+        echo "$DNOTES"
+        echo "$SEPARATE"
+        cat $DNOTES
+      fi
+    else
+      rm -f $DNOTES
+    fi
+  else
+    echo "0 /12 | Did not submit an errors file (ls: $(ls -m))" >> $DEDUCT
+  fi
+}
+
+avalera() {
+  # This code runs once, only for August
+  echo "start avalera()"
+  forall checkfilename
+  forall checkcomment
+  forall checkerrors
+}
+
+icherdak(){
+  # This code runs once, only for Isaak
+  echo "start icherdak()"
+}
+
+# Runs user specific code first, do -c to skip this
+if [[ $1 == "compile" ]]; then
+  echo "Skipping user specific grading step"
+else
+  $USER
+fi
+
+# Finalize deduction file
+DEDUCT=".d.temp.f"
+makededuct() {
+  touch $DEDUCT
+  runme rm -f $DEDUCT
+  for D in .d.*.f; do
+    echo "Processing $D"
+    if [[ -s $D ]]; then
+      cat $D >> $DEDUCTFILE
+      for N in $(cat $D | cut -d '/' -f 1); do
+        score $N
+      done
+    fi
+  done
+}
+forall makededuct >> $LOG
+scorecap() {
+  STUDENTSCORE=$(cat $SCOREFILE)
+  if [[ $STUDENTSCORE -gt $SCORETOTAL ]]; then
+    OVER=$((SCORETOTAL - STUDENTSCORE))
+    echo "$OVER/ 0 | Student score over assignment maximum (cannot exceed 100%)" >> $DEDUCTFILE
+    score $OVER
+  elif [[ $STUDENTSCORE -lt 0 ]]; then
+    UNDER=$((-1 * STUDENTSCORE))
+    echo "$UNDER/ 0 | Student score manually set to 0 (see notes for description)" >> $DEDUCTFILE
+    score $UNDER
+  fi
+}
+forall scorecap > /dev/null
+
+# Now compile gradefile
+CLASSTOTAL=0
+CLASSNUMBER=0
+makeavg() {
+  echo "$STUDENT:$(cat $SCOREFILE) TOTAL:$CLASSTOTAL NUMBER:$CLASSNUMBER" >> $LOG
+  CLASSTOTAL=$(($CLASSTOTAL + $(cat $SCOREFILE)))
+  CLASSNUMBER=$(($CLASSNUMBER + 1))
+}
+forall makeavg >> $LOG
+CLASSAVG=$(($CLASSTOTAL / $CLASSNUMBER))
+CLASSPERCENT=$(($CLASSAVG * 100 / $SCORETOTAL))
+echo "$SEPARATE" >> $LOG
+echo "CLASSAVG:$CLASSAVG CLASSPERCENT=$CLASSPERCENT%" >> $LOG
+makegrade() {
+  echo "start makegrade()"
+  GRADEFILE="grade.txt"
+  STUDENTNAME=$(getent passwd $STUDENT | cut -d ":" -f 5)
+  STUDENTSCORE=$(cat $SCOREFILE)
+  STUDENTPERCENT=$(($STUDENTSCORE * 100 / $SCORETOTAL))
+  INFOFILE="$BIN/info.txt"
+  echo "CLASS:   $CLASS" > $GRADEFILE
+  echo "ASG:     $ASG" >> $GRADEFILE
+  echo "GRADERS: Isaak Joseph Cherdak <icherdak>" >> $GRADEFILE
+  echo "         August Salay Valera <avalera>" >> $GRADEFILE
+  echo "STUDENT: $STUDENTNAME <$STUDENT>" >> $GRADEFILE
+  echo "SCORE:   $STUDENTSCORE / $SCORETOTAL ($STUDENTPERCENT%)" >> $GRADEFILE
+  echo "AVERAGE: $CLASSAVG / $SCORETOTAL ($CLASSPERCENT%)" >> $GRADEFILE
+  echo >> $GRADEFILE
+  echo "GRADE BREAKDOWN:" >> $GRADEFILE
+  if [[ -s $DEDUCTFILE ]]; then
+    cat $DEDUCTFILE >> $GRADEFILE
+    ls
+  else
+    echo "N/A" >> $GRADEFILE
+  fi
+  echo >> $GRADEFILE
+  echo "NOTES:" >> $GRADEFILE
+  if [[ -s $NOTEFILE ]]; then
+    cat $NOTEFILE >> $GRADEFILE
+  else
+    echo "N/A" >> $GRADEFILE
+  fi
+  if [[ -s $INFOFILE ]]; then
+    echo >> $GRADEFILE
+    echo "INFO:" >> $GRADEFILE
+    cat $BIN/info.txt >> $GRADEFILE
+  fi
+}
+forall makegrade > /dev/null
+ALLGRADES=$BIN/grade.all
+rm -f $ALLGRADES
+forall cat $GRADEFILE >> $ALLGRADES
+
+# Create csv files
+makecsv() {
+  for CLASS in $CLASSES; do
+    CLASSNUM=$(echo $CLASS | cut -d '0' -f 2 | cut -d '-' -f 1)
+    if [[ ! -e $BIN/export ]]; then
+      mkdir $BIN/export
+    fi
+    CSV=$BIN/export/cs$CLASSNUM.$ASG.csv
+    ASGDIR=$ROOT/$CLASS/$ASG
+    echo "student,$ASG[$SCORETOTAL]" > $CSV
+    cd $ASGDIR
+    for STUDENT in $(ls -d */); do
+      STUDENTDIR=$ASGDIR/$STUDENT
+      cd $STUDENTDIR
+      STUDENT=$(basename $STUDENT /)
+      echo "$STUDENT,$(cat $SCOREFILE)" >> $CSV
+    done
+  done
+}
+makecsv
+
+# Send mails
+wait3() {
+  echo -ne "[   ]\r";
+  sleep 1
+  echo -ne "[#  ]\r"
+  sleep 1
+  echo -ne "[## ]\r"
+  sleep 1
+  echo "[###]"
+}
+MAILFILE=".mail.f"
+SENDER="icherdak"
+makemail() {
+  if [[ $USER == $SENDER && -e $MAILFILE ]]; then
+    EMAIL="$STUDENT@ucsc.edu"
+    mailx -s "[$CLASS] $ASG grade for $STUDENT" $EMAIL < $GRADEFILE
+    rm -f $MAILFILE
+    echo "$EMAIL: ($((CLASSNUMBER=$CLASSNUMBER-1)) students remaining)"
+    wait3
+  fi
+  echo "[$CLASS] $ASG grade for $STUDENT"
+}
+forall makemail
+CLEANFILE="CLEAN.f"
+makeclean() {
+  if [[ -e $CLEANFILE ]]; then
+    rm -f *.f
+  fi
+}
+forall makeclean > /dev/null

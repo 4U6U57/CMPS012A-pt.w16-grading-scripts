@@ -1,0 +1,302 @@
+#!/bin/bash
+# grade.sh
+
+# 2 points - spelled GCD.java correctly, august
+# 3 points - GCD exists, august
+# 2 points - named Makefile correctly, august
+# 3 point - Makefile exists, august
+# 2 points - comment block, august
+# 3 points - no stupid characters, shitty dash //diff
+# 5 points - actually modified Makefile correctly (0-5) //diff, isaak
+
+ROOT="/afs/cats.ucsc.edu/class"
+CLASSES="cmps012a-pt.w16 cmps011-pt.w16"
+ASG=$(basename $(pwd))
+BIN="$ROOT/cmps012a-pt.w16/bin/$ASG"
+SEPARATE="=================================================="
+LOG=$BIN/grade.log
+
+# Takes input cmd, runs it for every student
+# Use this like follows: forall ls, forall echo "test"
+forall() {
+  for CLASS in $CLASSES; do
+    CLASSNUM=$(echo $CLASS | cut -d '0' -f 2 | cut -d '-' -f 1)
+    ASGDIR=$ROOT/$CLASS/$ASG
+    cd $ASGDIR
+    for STUDENT in $(ls -d */); do
+      STUDENTDIR=$ASGDIR/$STUDENT
+      cd $STUDENTDIR
+      echo "$SEPARATE"
+      echo "$CLASS/$STUDENT $@"
+      STUDENT=$(basename $STUDENT /)
+      $@
+    done
+  done
+}
+
+# Cleanup any trash from previous runs
+RUNME=".runme.f"
+runmenow() {
+  if [[ -e $RUNME ]]; then
+    $RUNME
+    rm -f $RUNME
+  fi
+}
+forall runmenow > /dev/null
+runmeset() {
+  runmenow
+  echo "#!/bin/bash" > $RUNME
+  chmod +x $RUNME
+}
+forall runmeset > /dev/null
+runme() {
+  echo $@ >> $RUNME
+}
+
+# Init scores
+# cat $SCOREFILE to read current score
+# use score -1 to deduct one point
+SCOREFILE=".score.f"
+DEDUCTFILE=".deduct.f"
+RESULTFILE="result.f"
+NOTEFILE=".notes.f"
+SCORETOTAL=20
+scoreset() {
+  echo $@ > $SCOREFILE
+  rm -f $DEDUCTFILE
+  touch $DEDUCTFILE
+}
+score() {
+  echo $(($(cat $SCOREFILE) + $@)) > $SCOREFILE
+}
+forall scoreset 0 > /dev/null
+rm -f $LOG
+
+# Automatic checks
+checkauto() {
+  LSORIG=$(ls -m)
+  # Makefile
+  if [[ -e Makefile ]]; then
+    echo "5 / 5 | Makefile submitted correctly" >> $DEDUCTFILE
+    score 5
+  elif [[ -e MakeFile ]]; then
+    cat MakeFile > Makefile
+    runme rm -f Makefile
+    echo "3 / 5 | Makefile named wrong (ls : $LSORIG)" >> $DEDUCTFILE
+    score 3
+  elif [[ -e Makefile.mak ]]; then
+    cat Makefile.mak > Makefile
+    runme rm -f Makefile
+    echo "3 / 5 | Makefile named wrong (ls : $LSORIG)" >> $DEDUCTFILE
+    score 3
+
+  else
+    echo "0 / 5 | Did not submit Makefile (ls: $LSORIG)" >> $DEDUCTFILE
+  fi
+  # GCD.java
+  if [[ -e GCD.java ]]; then
+    echo "5 / 5 | GCD.java submitted correctly" >> $DEDUCTFILE
+    score 5
+  elif [[ -e GDC.java ]]; then
+    echo "3 / 5 | GCD.java named wrong (ls: $LSORIG)" >> $DEDUCTFILE
+    score 3
+  else
+    echo "0 / 5 | Did not submit GCD.java (ls: $LSORIG)" >> $DEDUCTFILE
+  fi
+  # Comment block
+  if [[ ! -e Makefile || $(head -c 1 Makefile) == \# ]]; then
+    echo "2 / 2 | Comment block on Makefile" >> $DEDUCTFILE
+    score 2
+  elif [[ ! -e Makefile || $(head -c 1 Makefile) == \/ ]]; then
+    echo "1 / 2 | Comment block wrong format for Makefile (First line: $(head -n 1 Makefile))" >> $DEDUCTFILE
+    score 1
+  else
+    echo "0 / 2 | No comment block on Makefile (First line: $(head -n 1 Makefile))" >> $DEDUCTFILE
+  fi
+  # Bad characters
+  if [[ -e Makefile && $(grep – Makefile) ]]; then
+    echo "1 / 3 | Copied directly from PDF, does not compile" >> $DEDUCTFILE
+    score 1
+  else
+    echo "3 / 3 | Correctly adapted Makefile from PDF" >> $DEDUCTFILE
+    score 3
+  fi
+  # Result
+  if [[ -e Makefile ]]; then
+    diff -Bb -I '#.*' $BIN/correct.$CLASSNUM.mk Makefile > $RESULTFILE
+  else
+    echo "Did not submit a Makefile" > $RESULTFILE
+  fi
+  runme rm -f $RESULTFILE
+}
+forall checkauto > /dev/null
+
+# August's stuff
+
+# Isaak's stuff
+checkmakefile() {
+  DEDUCT=".d.makefile.f"
+  if [[ -s $DEDUCT ]]; then
+    pwd
+    cat $DEDUCT
+  elif [[ -s $RESULTFILE ]]; then
+    cat Makefile
+    echo "$SEPARATE"
+    cat $RESULTFILE
+    echo "Grade line numbers (out of 5) or (s)kip?"
+    read INPUT
+    if [[ "$INPUT" == "s" ]]; then
+      echo "Skipping $STUDENT for now"
+    else
+      if [[ "$INPUT" == "" ]]; then
+        INPUT=5
+      fi
+      echo "Gave $STUDENT $INPUT points for lines"
+      echo "$INPUT / 5 | Makefile did not pass diff" > $DEDUCT
+
+      echo "Do you want to include any notes (y/n)?"
+      read INPUT
+      if [[ "$INPUT" == "y" ]]; then
+        echo "Please enter in your notes below"
+        read INPUT
+        echo "$INPUT" > $NOTEFILE
+      fi
+    fi
+  else
+    echo "$STUDENT found to have exact Makefile, skipping"
+    echo "5 / 5 | Makefile edited correctly" > $DEDUCT
+  fi
+}
+
+avalera() {
+  # This code runs once, only for August
+  echo "start avalera()"
+  forall checkmakefile
+}
+
+icherdak(){
+  # This code runs once, only for Isaak
+  echo "start icherdak()"
+  forall checkmakefile
+}
+
+# Runs user specific code first, do -c to skip this
+if [[ $1 == "compile" ]]; then
+  echo "Skipping user specific grading step"
+else
+  $USER
+fi
+
+# Finalize deduction file
+DEDUCT=".d.temp.f"
+makededuct() {
+  touch $DEDUCT
+  runme rm -f $DEDUCT
+  for D in .d.*.f; do
+    echo "Processing $D"
+    if [[ -s $D ]]; then
+      cat $D >> $DEDUCTFILE
+      score $(cat $D | cut -d '/' -f 1)
+    fi
+  done
+}
+forall makededuct >> $LOG
+
+# Now compile gradefile
+CLASSTOTAL=0
+CLASSNUMBER=0
+makeavg() {
+  echo "$STUDENT:$(cat $SCOREFILE) TOTAL:$CLASSTOTAL NUMBER:$CLASSNUMBER" >> $LOG
+  CLASSTOTAL=$(($CLASSTOTAL + $(cat $SCOREFILE)))
+  CLASSNUMBER=$(($CLASSNUMBER + 1))
+}
+forall makeavg >> $LOG
+CLASSAVG=$(($CLASSTOTAL / $CLASSNUMBER))
+CLASSPERCENT=$(($CLASSAVG * 100 / $SCORETOTAL))
+echo "$SEPARATE" >> $LOG
+echo "CLASSAVG:$CLASSAVG CLASSPERCENT=$CLASSPERCENT%" >> $LOG
+makegrade() {
+  echo "start makegrade()"
+  GRADEFILE="grade.txt"
+  STUDENTNAME=$(getent passwd $STUDENT | cut -d ":" -f 5)
+  STUDENTSCORE=$(cat $SCOREFILE)
+  STUDENTPERCENT=$(($STUDENTSCORE * 100 / $SCORETOTAL))
+  INFOFILE="$BIN/info.txt"
+  echo "CLASS:   $CLASS" > $GRADEFILE
+  echo "ASG:     $ASG" >> $GRADEFILE
+  echo "GRADERS: Isaak Joseph Cherdak <icherdak>" >> $GRADEFILE
+  echo "         August Salay Valera <avalera>" >> $GRADEFILE
+  echo "STUDENT: $STUDENTNAME <$STUDENT>" >> $GRADEFILE
+  echo "SCORE:   $STUDENTSCORE / $SCORETOTAL ($STUDENTPERCENT%)" >> $GRADEFILE
+  echo "AVERAGE: $CLASSAVG / $SCORETOTAL ($CLASSPERCENT%)" >> $GRADEFILE
+  echo >> $GRADEFILE
+  echo "GRADE BREAKDOWN:" >> $GRADEFILE
+  if [[ -s $DEDUCTFILE ]]; then
+    cat $DEDUCTFILE >> $GRADEFILE
+    ls
+  else
+    echo "N/A" >> $GRADEFILE
+  fi
+  echo >> $GRADEFILE
+  echo "NOTES:" >> $GRADEFILE
+  if [[ -s $NOTEFILE ]]; then
+    cat $NOTEFILE >> $GRADEFILE
+  else
+    echo "N/A" >> $GRADEFILE
+  fi
+  if [[ -s $INFOFILE ]]; then
+    echo >> $GRADEFILE
+    echo "INFO:" >> $GRADEFILE
+    cat $BIN/info.txt >> $GRADEFILE
+  fi
+}
+forall makegrade > /dev/null
+ALLGRADES=$BIN/grade.all
+rm -f $ALLGRADES
+forall cat $GRADEFILE >> $ALLGRADES
+
+# Create csv files
+for CLASS in $CLASSES; do
+  CLASSNUM=$(echo $CLASS | cut -d '0' -f 2 | cut -d '-' -f 1)
+  CSV=$BIN/cs$CLASSNUM.$ASG.csv
+  ASGDIR=$ROOT/$CLASS/$ASG
+  echo "student,$ASG[$SCORETOTAL]" > $CSV
+  cd $ASGDIR
+  for STUDENT in $(ls -d */); do
+    STUDENTDIR=$ASGDIR/$STUDENT
+    cd $STUDENTDIR
+    STUDENT=$(basename $STUDENT /)
+    echo "$STUDENT,$(cat $SCOREFILE)" >> $CSV
+  done
+done
+
+# Send mails
+wait3() {
+  echo -ne "[   ]\r";
+  sleep 1
+  echo -ne "[#  ]\r"
+  sleep 1
+  echo -ne "[## ]\r"
+  sleep 1
+  echo "[###]"
+}
+MAILFILE=".mail.f"
+SENDER="avalera"
+makemail() {
+  if [[ $USER == $SENDER && -e $MAILFILE ]]; then
+    EMAIL="$STUDENT@ucsc.edu"
+    mailx -s "[$CLASS] $ASG grade for $STUDENT" $EMAIL < $GRADEFILE
+    rm -f $MAILFILE
+    echo "$EMAIL: ($((CLASSNUMBER=$CLASSNUMBER-1)) students remaining)"
+    wait3
+  fi
+  echo "[$CLASS] $ASG grade for $STUDENT"
+}
+forall makemail
+CLEANFILE="CLEAN.f"
+makeclean() {
+  if [[ -e $CLEANFILE ]]; then
+    rm -f *.f .*.f
+  fi
+}
+forall makeclean > /dev/null

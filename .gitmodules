@@ -1,0 +1,6 @@
+[submodule "automatic-depreciated"]
+	path = automatic-depreciated
+	url = git@github.com:4U6U57/automatic-depreciated.git
+[submodule "automatic"]
+	path = automatic
+	url = git@github.com:4U6U57/automatic-depreciated.git

@@ -1,0 +1,98 @@
+#!/bin/bash
+
+ROOT="/afs/cats.ucsc.edu/class"
+CLASSES="cmps012a-pt.w16 cmps011-pt.w16"
+ASG=$(basename $(pwd))
+BIN="$ROOT/cmps012a-pt.w16/bin/$ASG"
+SEPARATE="=================================================="
+
+# Takes input cmd, runs it for every student
+# Use this like follows: forall ls, forall echo "test"
+forall() {
+  for CLASS in $CLASSES; do
+    CLASSNUM=$(echo $CLASS | cut -d '0' -f 2 | cut -d '-' -f 1)
+    ASGDIR=$ROOT/$CLASS/$ASG
+    cd $ASGDIR
+    for STUDENT in $(ls -d */); do
+      STUDENTDIR=$ASGDIR/$STUDENT
+      cd $STUDENTDIR
+      #echo "$SEPARATE"
+      #echo "$CLASS/$STUDENT $@"
+      $@
+    done
+  done
+}
+
+backup() {
+  mkdir .backup
+  cp * .backup
+}
+#forall backup
+
+restore() {
+  mkdir .trash
+  mv * .trash
+  cp .backup/* .
+}
+#forall restore
+
+#forall ls -m > $BIN/current.ls
+#forall ls -m .backup > $BIN/backup.ls
+
+printerrors() {
+  for FILE in *; do
+    if [[ $FILE == *rror* && $FILE != *.dat ]]; then
+      if [[ $FILE != errors ]]; then
+        echo -n $FILE " "
+      else
+        echo -n "* "
+      fi
+    fi
+  done
+  #pwd
+  echo
+}
+
+badls() {
+  if [[ -e GCD.c && -e Makefile ]]; then
+    echo
+  else
+    pwd
+    ls -m
+  fi
+}
+#forall badls > badls
+
+lspwd () {
+ if [[ -e .d.invalid.f ]]; then
+   if grep -q "/ 4" .d.invalid.f; then
+     echo -n ""
+   else
+     INV=$(cat .d.invalid.f)
+     INV=${INV//\/ 1/\/ 4}
+     echo $INV
+   fi
+ fi
+}
+#forall lspwd
+
+relevant() {
+  if [[ -e GCD.c ]]; then
+    echo "4 / 4 | Wrote relevant code" > .d.relevant.f
+  fi
+}
+# forall relevant
+
+halfless() {
+  if grep -q "not compile" .grade.f; then
+    bash
+  fi
+}
+#forall halfless
+#echo "DONE WITH TESTER"
+
+swag() {
+  basename $(pwd)
+  cat .score.f
+}
+forall swag

@@ -1,0 +1,21 @@
+/afs/cats.ucsc.edu/class/cmps012a-pt.w16/bin/lab2/lab2
+
+Access list for public is
+Normal rights:
+  system:cmps012a-pt-admin rlidwka
+  system:operator rlidwk
+  system:authuser rlid
+  system:anyuser rl
+
+Access list for private is
+Normal rights:
+  system:cmps012a-pt-admin rlidwka
+
+total 7
+-rw-r--r--. 1 icherdak users  426 Jan 22 10:00 HelloWorld.class
+drwxr-xr-x. 2 icherdak users 2048 Jan 22 10:00 private
+-rwx------. 1 icherdak users  193 Jan 22 10:00 prog
+drwxr-xr-x. 2 icherdak users 2048 Jan 22 10:00 public
+-rw-r--r--. 1 icherdak users  737 Jan 22 10:00 result
+
+Hello, lab2!

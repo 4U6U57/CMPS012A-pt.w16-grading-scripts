@@ -1,0 +1,28 @@
+#!/bin/bash
+
+USER=$(basename $(pwd))
+CLASS=$(pwd | cut -d '/' -f 5 | cut -d '0' -f 2 | cut -d '-' -f 1)
+HOME=$(getent passwd $USER | cut -d ':' -f 6)
+OUTPUT=result.correct
+
+echo "$HOME/cs$CLASS/lab2" > $OUTPUT
+echo >> $OUTPUT
+echo "Access list for public is" >> $OUTPUT
+echo "Normal rights:" >> $OUTPUT
+echo >> $OUTPUT
+echo "  system:operator rlidwk" >> $OUTPUT
+echo "  system:authuser rlid" >> $OUTPUT
+echo "  system:anyuser rl" >> $OUTPUT
+echo "  $USER rlidwka" >> $OUTPUT
+echo "Access list for private is" >> $OUTPUT
+echo "Normal rights:" >> $OUTPUT
+echo "  $USER rlidwka" >> $OUTPUT
+echo >> $OUTPUT
+echo "total 7" >> $OUTPUT
+echo "-rw-r--r--. 1 $USER users  426 Jan 22 10:00 HelloWorld.class" >> $OUTPUT
+echo "drwxr-xr-x. 2 $USER users 2048 Jan 22 10:00 private" >> $OUTPUT
+echo "-rwx------. 1 $USER users  193 Jan 22 10:00 prog" >> $OUTPUT
+echo "drwxr-xr-x. 2 $USER users 2048 Jan 22 10:00 public" >> $OUTPUT
+echo "-rw-r--r--. 1 $USER users  737 Jan 22 10:00 result" >> $OUTPUT
+echo >> $OUTPUT
+echo "Hello, lab2!" >> $OUTPUT

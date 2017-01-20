@@ -1,0 +1,9 @@
+Sorry for sending this out late, but I also have finals to take care of. I tried
+to grade easier on this one, but there were still a lot of submissions that did
+not compile at all, which is unfortunate. I am setting a soft limit of midnight
+on Saturday, March 19, in which to request a regrade. You can do this, as always,
+by replying REGRADE in this email (all caps please). Note that, due to limited
+time, if you send me something and your error was covered under the rubric, I
+will not be as lenient as I was in the past. We reserve the right to take off
+additional points if we catch mistakes, etc. Good luck on your future courses,
+and I hope you have a good one week break from coding. lab6 is also almost done.

@@ -1,0 +1,32 @@
+#!/bin/bash
+
+ROOT="/afs/cats.ucsc.edu/class"
+CLASSES="cmps012a-pt.w16 cmps011-pt.w16"
+ASG=$(basename $(pwd))
+SEPARATE="=================================================="
+
+# Takes input cmd, runs it for every student
+# Use this like follows: forall ls, forall echo "test"
+forall() {
+  for CLASS in $CLASSES; do
+    ASGDIR=$ROOT/$CLASS/$ASG
+    cd $ASGDIR
+    for STUDENT in $(ls -d */); do
+      STUDENTDIR=$ASGDIR/$STUDENT
+      cd $STUDENTDIR
+      #echo "$SEPARATE"
+      #echo "$CLASS/$STUDENT $@"
+      $@
+    done
+  done
+}
+
+test() {
+  if [[ -e result.f ]]; then
+    echo
+  else
+    bash
+  fi
+}
+
+forall test

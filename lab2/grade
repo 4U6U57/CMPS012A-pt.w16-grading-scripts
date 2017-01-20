@@ -1,0 +1,321 @@
+#!/bin/bash
+# grade.sh
+
+# 2pts - pwd Aug // done
+# 2pts - ls -l Aug // done
+# 4pts - hello lab2 Aug
+# 2pts - filename Aug // done
+# 5pts - permissions Isa
+# 5pts - line numbers Isa
+
+ROOT="/afs/cats.ucsc.edu/class"
+CLASSES="cmps012a-pt.w16 cmps011-pt.w16"
+ASG=$(basename $(pwd))
+BIN="$ROOT/cmps012a-pt.w16/bin/$ASG"
+SEPARATE="=================================================="
+LOG=$BIN/grade.log
+TRASH=$BIN/.trash.f
+
+# Takes input cmd, runs it for every student
+# Use this like follows: forall ls, forall echo "test"
+forall() {
+  for CLASS in $CLASSES; do
+    ASGDIR=$ROOT/$CLASS/$ASG
+    cd $ASGDIR
+    for STUDENT in $(ls -d */); do
+      STUDENTDIR=$ASGDIR/$STUDENT
+      cd $STUDENTDIR
+      echo "$SEPARATE"
+      echo "$CLASS/$STUDENT $@"
+      $@
+    done
+  done
+}
+
+# Init scores
+# cat $SCOREFILE to read current score
+# use score -1 to deduct one point
+SCOREFILE=".score.f"
+DEDUCTFILE=".deduct.f"
+RESULTFILE="result.f"
+SCORETOTAL=20
+scoreset() {
+  echo $@ > $SCOREFILE
+  rm -f $DEDUCTFILE
+  touch $DEDUCTFILE
+}
+score() {
+  echo $(($(cat $SCOREFILE) + $@)) > $SCOREFILE
+}
+forall scoreset 0 > $TRASH
+rm -f $LOG
+
+# Automatic checks
+checkresult() {
+  if [[ -e result ]]; then
+    cat result > $RESULTFILE
+    echo "2 / 2 | result file named correctly" >> $DEDUCTFILE
+    score 2
+  elif [[ -e .result.q.f ]]; then
+    cat .result.q.f > $RESULTFILE
+    echo "1 / 2 | result file named incorrectly (result?)" >> $DEDUCTFILE
+    score 1
+  elif [[ -e prog ]]; then
+    cat prog > $RESULTFILE
+    echo "0 / 2 | result file named incorrectly (prog)" >> $DEDUCTFILE
+  elif [[ -e prog.txt ]]; then
+    cat prog.txt > $RESULTFILE
+    echo "0 / 2 | result file named incorrectly (prog.txt)" >> $DEDUCTFILE
+  elif [[ -e prog1 ]]; then
+    cat prog1 > $RESULTFILE
+    echo "0 / 2 | result file named incorrectly (prog1)" >> $DEDUCTFILE
+  fi
+}
+forall checkresult > $TRASH
+checkpwd() {
+  STUDENTHOME=$(getent passwd $(basename $STUDENT /) | cut -d ':' -f 6)
+  CLASSNUM=$(echo $CLASS | cut -d '0' -f 2 | cut -d '-' -f 1)
+  CORRECTPWD=$STUDENTHOME/cs$CLASSNUM/$ASG
+  FIRSTLINE=$(head -n 1 $RESULTFILE)
+  LASTFOUR=$(echo $FIRSTLINE | tail -c 5) 
+  #echo $CORRECTPWD >> $BIN/pwd.f
+  #head -n 1 $RESULTFILE >> $BIN/pwd.f
+  #echo >> $BIN/pwd.f
+  if [[ $CORRECTPWD == $FIRSTLINE ]]; then
+    echo "2 / 2 | First line of result is correct pwd" >> $DEDUCTFILE
+    score 2
+  elif [[ $LASTFOUR == "lab2" || $LASTFOUR == "Lab2" ]]; then
+    echo "2 / 2 | First line of result is pwd, incorrect path but correct name ($FIRSTLINE)" >> $DEDUCTFILE
+    score 2
+  elif [[ $FIRSTLINE == *"afs"* ]]; then
+    echo "1 / 2 | First line of result is pwd, incorrect path and name ($FIRSTLINE)" >> $DEDUCTFILE
+    score 1
+  elif [[ $FIRSTLINE == *"#"* || $FIRSTLINE == *"//"* ]]; then
+    echo "1 / 2 | First line of result not pwd, you should not have a comment block ($FIRSTLINE)" >> $DEDUCTFILE
+    score 1
+  else
+    echo "0 / 2 | First line of result is not pwd at all ($FIRSTLINE)" >> $DEDUCTFILE
+  fi
+}
+forall checkpwd > $TRASH
+checkhello() {
+  LASTLINE=$(tail -n 1 $RESULTFILE)
+  if [[ "$LASTLINE" == "Hello, lab2!" ]]; then
+    echo "4 / 4 | HelloWorld.java edited and ran correctly" >> $DEDUCTFILE
+    score 4
+  elif [[ "$LASTLINE" == *"lab2"* || "$LASTLINE" == *"Lab2"* ]]; then
+    echo "4 / 4 | HelloWorld.java edited, not correct but close enough ($LASTLINE)" >> $DEDUCTFILE 
+    score 4
+  elif [[ "$LASTLINE" == *"Hello"* ]]; then
+    echo "3 / 4 | HelloWorld.java not edited, but runs successfully for lab1 ($LASTLINE)" >> $DEDUCTFILE
+    score 3
+  else
+    echo "2 / 4 | Either HelloWorld.java not ran, or bad output ($LASTLINE)" >> $DEDUCTFILE
+    score 2
+  fi
+}
+forall checkhello > $TRASH
+
+# August's stuff
+SD=".d.list.f"
+checklist() {
+  if [[ -e $SD ]]; then
+    pwd
+    cat $SD
+  else
+    cat $RESULTFILE
+    echo "Grade list (out of 2)?"
+    read INPUT
+    if [[ "$INPUT" == "s" ]]; then
+      echo "Skipping $STUDENT for now"
+    else
+      if [[ "$INPUT" == "" ]]; then
+        INPUT=2
+      fi
+      echo "Gave $STUDENT $INPUT points for list"
+      if [[ "$INPUT" -eq 2 ]]; then
+        echo "2 / 2 | ls -l ran correctly" > $SD
+      elif [[ "$INPUT" -eq 1 ]]; then
+        echo "1 / 2 | ls not ran with the -l argument" > $SD
+      else
+        echo "0 / 2 | ls not ran at all" > $SD
+      fi
+    fi
+  fi
+}
+
+# Isaak's stuff
+PD=".d.permission.f"
+checkpermissions() {
+  if [[ -e $PD ]]; then
+    pwd
+    cat $PD
+  else
+    cat $RESULTFILE
+    echo "Grade permissions (out of 5)?"
+    read INPUT
+    if [[ "$INPUT" == "s" ]]; then
+      echo "Skipping $STUDENT for now"
+    else
+      if [[ "$INPUT" == "" ]]; then
+        INPUT=5
+      fi
+      echo "Gave $STUDENT $INPUT points for permission"
+      echo "$INPUT / 5 | Folder permissions for public and private" > $PD
+    fi
+  fi
+}
+LD=".d.lines.f"
+checklines() {
+  if [[ -s $LD ]]; then
+    pwd
+    cat $LD
+  elif [[ "$(wc -l $RESULTFILE)" == "21 result.f" ]]; then
+    echo "$STUDENT found to have 21 lines, graded automatically"
+    echo "5 / 5 | result file is exactly 21 lines long" > $LD
+  else
+    cat $RESULTFILE
+    wc -l $RESULTFILE
+    echo "Grade line numbers (out of 5)?"
+    read INPUT
+    if [[ "$INPUT" == "s" ]]; then
+      echo "Skipping $STUDENT for now"
+    else
+      if [[ "$INPUT" == "" ]]; then
+        INPUT=5
+      fi
+      echo "Gave $STUDENT $INPUT points for lines"
+      echo "$INPUT / 5 | result file is not 21 lines long ($(wc -l $RESULTFILE))" > $LD
+    fi
+  fi
+}
+
+avalera() {
+  # This code runs once, only for August
+  echo "start avalera()"
+  forall checklist
+  forall checkpermissions
+  forall checklines
+}
+
+icherdak(){
+  # This code runs once, only for Isaak
+  echo "start icherdak()"
+  forall checkpermissions
+  forall checklines
+}
+
+# Runs user specific code first, do -c to skip this
+if [[ $1 == "compile" ]]; then
+  echo "Skipping user specific grading step"
+else
+  $USER
+fi
+
+# Now run global commands
+
+
+# Finalize deduction file
+TEMPDEDUCT=".d.temp.f"
+makededuct() {
+  touch $TEMPDEDUCT
+  for D in .d.*.f; do
+    echo "Processing $D"
+    if [[ -s $D ]]; then
+      cat $D >> $DEDUCTFILE
+      score $(cat $D | cut -d '/' -f 1)
+    fi
+  done
+  rm -f $TEMPDEDUCT $RESULTFILE
+}
+forall makededuct >> $LOG
+
+# Now compile gradefile
+CLASSTOTAL=0
+CLASSNUMBER=0
+makeavg() {
+  echo "$STUDENT:$(cat $SCOREFILE) TOTAL:$CLASSTOTAL NUMBER:$CLASSNUMBER" >> $LOG
+  CLASSTOTAL=$(($CLASSTOTAL + $(cat $SCOREFILE)))
+  CLASSNUMBER=$(($CLASSNUMBER + 1))
+}
+forall makeavg >> $LOG
+CLASSAVG=$(($CLASSTOTAL / $CLASSNUMBER))
+CLASSPERCENT=$(($CLASSAVG * 100 / $SCORETOTAL))
+echo "$SEPARATE" >> $LOG
+echo "CLASSAVG:$CLASSAVG CLASSPERCENT=$CLASSPERCENT%" >> $LOG
+makegrade() {
+  echo "start makegrade()"
+  GRADEFILE="grade.txt"
+  STUDENTID=$(basename $STUDENT /)
+  STUDENTNAME=$(getent passwd $STUDENTID | cut -d ":" -f 5)
+  STUDENTSCORE=$(cat $SCOREFILE)
+  STUDENTPERCENT=$(($STUDENTSCORE * 100 / $SCORETOTAL))
+  echo "CLASS:   $CLASS" > $GRADEFILE
+  echo "ASG:     $ASG" >> $GRADEFILE
+  echo "GRADERS: Isaak Joseph Cherdak <icherdak>" >> $GRADEFILE
+  echo "         August Salay Valera <avalera>" >> $GRADEFILE
+  echo "STUDENT: $STUDENTNAME <$STUDENTID>" >> $GRADEFILE
+  echo "SCORE:   $STUDENTSCORE / $SCORETOTAL ($STUDENTPERCENT%)" >> $GRADEFILE
+  echo "AVERAGE: $CLASSAVG / $SCORETOTAL ($CLASSPERCENT%)" >> $GRADEFILE
+  echo >> $GRADEFILE
+  echo "GRADE BREAKDOWN:" >> $GRADEFILE
+  if [[ -s $DEDUCTFILE ]]; then
+    cat $DEDUCTFILE >> $GRADEFILE
+    ls
+  else
+    echo "N/A" >> $GRADEFILE
+  fi
+  echo >> $GRADEFILE
+  echo "INFO:" >> $GRADEFILE
+  cat $BIN/info.txt >> $GRADEFILE
+}
+forall makegrade > $TRASH
+ALLGRADES=$BIN/grade.all
+rm -f $ALLGRADES
+forall cat $GRADEFILE >> $ALLGRADES
+
+# Create csv files
+for CLASS in $CLASSES; do
+  CLASSNUM=$(echo $CLASS | cut -d '0' -f 2 | cut -d '-' -f 1)
+  CSV=$BIN/cs$CLASSNUM.$ASG.csv
+  ASGDIR=$ROOT/$CLASS/$ASG
+  echo "student,$ASG[$SCORETOTAL]" > $CSV
+  cd $ASGDIR
+  for STUDENT in $(ls -d */); do
+    STUDENTDIR=$ASGDIR/$STUDENT
+    cd $STUDENTDIR
+    echo "$(basename $STUDENT /),$(cat $SCOREFILE)" >> $CSV
+  done
+done
+
+# Send mails
+wait3() {
+  echo -ne "[   ]\r";
+  sleep 1
+  echo -ne "[#  ]\r"
+  sleep 1
+  echo -ne "[## ]\r"
+  sleep 1
+  echo "[###]"
+}
+MAILFILE=".mail.f"
+SENDER="avalera"
+makemail() {
+  if [[ $USER == $SENDER && -e $MAILFILE ]]; then
+    EMAIL="$(basename $STUDENT /)@ucsc.edu"
+    mailx -s "[$CLASS] $ASG grade for $(basename $STUDENT /)" $EMAIL < grade.txt
+    rm -f $MAILFILE
+    echo "$EMAIL ($((CLASSNUMBER=$CLASSNUMBER-1)) students remaining)"
+    wait3
+  fi
+  echo "[$CLASS] $ASG grade for $(basename $STUDENT /)" 
+}
+forall makemail
+CLEANFILE="CLEAN.f"
+makeclean() {
+  if [[ -e $CLEANFILE ]]; then
+    rm -f *.f .*.f
+  fi
+}
+forall makeclean > $TRASH
+rm -f $TRASH
